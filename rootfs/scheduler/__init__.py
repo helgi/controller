@@ -73,8 +73,16 @@ class KubeSchedulerClient(AbstractSchedulerClient):
         app_type = name.split('.')[1]
         name = name.replace('.', '-').replace('_', '-')
         app_name = kwargs.get('aname', {})
+
+        # Make sure the router knows what to do with this
+        data = {}
+        if app_type == 'web':
+            data['metadata']['labels']['routable'] = True
+            # set the app name as a domain, which becomes a subdomain of the platform domain
+            data['annotations']['deis.io/routerConfig']['domains'] = [app_name]
+
         try:
-            Service().create(name, app_name, app_type)
+            Service().create(name, app_name, app_type, data)
         except:
             controller.scale(name, 0, app_name)
             controller.delete(name, app_name)

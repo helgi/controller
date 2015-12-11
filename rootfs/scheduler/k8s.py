@@ -1,1 +1,1 @@
-from .scheduler import SchedulerClient  # noqa
+from . import SchedulerClient  # noqa

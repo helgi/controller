@@ -6,6 +6,7 @@ from docker import Client
 from .base import Base
 from .pod import Pod
 from .client import error, unhealthy
+from .utils import dict_merge
 
 
 class Service(Base):
@@ -36,7 +37,7 @@ class Service(Base):
 }
 """
 
-    def create(self, name, app_name, app_type):
+    def create(self, name, app_name, app_type, data={}):
         actual_pod = {}
         pod = Pod()
         for _ in xrange(300):
@@ -73,13 +74,14 @@ class Service(Base):
             'name': app_name,
         }))
 
-        resp = self.api.post('/namespaces/{}/services', app_name, check=False, json=template)
+        data = dict_merge(template, data)
+        resp = self.api.post('/namespaces/{}/services', app_name, check=False, json=data)
         if resp.status_code == 409:
             srv = self.get(app_name, app_name).json()
             if srv['spec']['selector']['type'] == 'web':
                 return
 
-            srv['spec']['selector']['type'] = app_type
+            # Set the port discovered
             srv['spec']['ports'][0]['targetPort'] = port
             self.update(app_name, app_name, srv)
         elif unhealthy(resp.status_code):
@@ -89,6 +91,8 @@ class Service(Base):
         return self.api.delete("/namespaces/{}/services/{}", namespace, name)
 
     def update(self, name, namespace, data):
+        srv = self.get(namespace, name).json()
+        data = dict_merge(data, srv)
         return self.api.put('/namespaces/{}/services/{}', namespace, name, json=data)
 
     def get(self, name, namespace):
